@@ -1,0 +1,303 @@
+rm(list = ls(all = TRUE))
+library(igraph)
+library(tidyr)
+library(data.table)
+
+# Q1
+# reading in data
+setwd("C:/Users/Adil Ashish Kumar/Desktop/673 - Social Network")
+data = fread("classroom_social_and_task_network (1).csv", header = TRUE)
+# dropping 0s since graph data frame plots them as edges
+data2 = data[data$social_tie!=0 | data$task_tie!=0,]
+social = data
+social$task_tie = NULL
+
+library(reshape)
+social1 =cast(social, ego~alter)
+adj_social =social1
+rownames(adj_social) = adj_social[,1]
+adj_social = adj_social[,-1]
+
+soc = graph.adjacency(as.matrix(adj_social), "directed", weighted = TRUE)
+#1a Social tie Centrality statistics
+degree(soc, mode = "in"))
+degree(soc, mode = "out")
+closeness(soc)
+betweenness(soc)
+page_rank(soc)
+
+task = data
+task$social_tie = NULL
+task1 =cast(task, ego~alter)
+adj_task =task1
+rownames(adj_task) = adj_task[,1]
+adj_task = adj_task[,-1]
+
+tas = graph.adjacency(as.matrix(adj_task), "directed", weighted = TRUE)
+#1a Task tie Centrality statistics
+degree(tas, mode = "in")
+degree(tas, mode = "out")
+closeness(tas)
+betweenness(tas)
+page_rank(tas)
+
+
+# Correlation between stats in both social and task tie networks
+cor(degree(soc, mode = "in"),degree(tas, mode = "in"))
+cor(degree(soc, mode = "out"),degree(tas, mode = "out"))
+cor(closeness(soc),closeness(tas))
+cor(betweenness(soc),betweenness(tas))
+cor(page_rank(soc)$vector,page_rank(tas)$vector)
+
+#Q2  
+# Creating graph from full data frame - social and task ties together
+gr = graph.data.frame(data2, directed=TRUE)
+
+# Calculating mean and median , excluding 0s, for social and task ties respectively
+mean_soc =mean(data2$social_tie[data2$social_tie>0])
+mean_tas =mean(data2$task_tie[data2$task_tie>0])
+median_soc =median(data2$social_tie[data2$social_tie>0])
+median_tas =median(data2$task_tie[data2$task_tie>0])
+
+# Assigning 10 as strong tie, 1 as weak tie and 0 as no tie, based on mean and median criterion
+data3 = data2
+data3$socmean = ifelse(data3$social_tie>mean_soc,10,ifelse(data3$social_tie==0,0,1))
+data3$socmedian = ifelse(data3$social_tie>median_soc,10,ifelse(data3$social_tie==0,0,1))
+data3$tasmean = ifelse(data3$task_tie>mean_tas,10,ifelse(data3$task_tie==0,0,1))
+data3$tasmedian = ifelse(data3$task_tie>median_tas,10,ifelse(data3$task_tie==0,0,1))
+
+#dropping unnecesary columns
+datamean = data3
+datamean$social_tie=NULL
+datamean$task_tie = NULL
+datamean$socmedian=NULL
+datamean$tasmedian=NULL
+
+# Based on mean strength, Combining social and task tie to create a single tie - strong if either is strong, weak if either is weak but not strong and 0 otherwise
+datamean$tie = ifelse(datamean$socmean + datamean$tasmean>1,3,ifelse(datamean$socmean + datamean$tasmean==1,1,0))
+datamean$socmean=NULL
+datamean$tasmean=NULL
+#datamean = datamean[datamean$tie!= 0]
+
+# Final combined network based on mean strength of both social and task tie
+meand = graph.data.frame(datamean)
+plot(meand,edge.width=E(meand)$tie,edge.color=E(meand)$tie)
+
+tkplot(meand,edge.width=E(meand)$tie,edge.color=E(meand)$tie,vertex.color= "light blue")
+# Based on median strength, Combining social and task tie to create a single tie - strong if either is strong, weak if either is weak but not strong and 0 otherwise
+datamedian = data3
+datamedian$social_tie=NULL
+datamedian$task_tie = NULL
+datamedian$socmean=NULL
+datamedian$tasmean=NULL
+datamedian$tie = ifelse(datamedian$socmedian + datamedian$tasmedian>1,3,ifelse(datamedian$socmedian + datamedian$tasmedian==1,1,0))
+datamedian$socmedian=NULL
+datamedian$tasmedian=NULL
+
+# Final combined network based on median strength of both social and task tie
+mediand = graph.data.frame(datamedian)
+plot(mediand,edge.width=E(mediand)$tie,edge.color=E(mediand)$tie)
+tkplot(mediand,edge.width=E(mediand)$tie,edge.color=E(mediand)$tie,vertex.color= "light blue")
+
+data4=data
+mean_soc =mean(data$social_tie[data$social_tie>0])
+mean_tas =mean(data$task_tie[data$task_tie>0])
+data4$socmean = ifelse(data4$social_tie>mean_soc,1,0)
+data4$tasmean = ifelse(data4$task_tie>mean_tas,1,0)
+data4$tie = ifelse(data4$socmean | data4$tasmean,1,0)
+
+
+dm = data4
+dm$social_tie = NULL
+dm$task_tie = NULL
+dm$socmean = NULL
+dm$tasmean = NULL
+strmat = dm
+strmat = cast(strmat,ego~alter)
+strmat = strmat[,-1]
+strmat = as.matrix(strmat)
+
+mat_sym <- strmat + t(strmat)
+mat_sym[mat_sym == 2] <- 1
+
+i <- 0 
+for (j in c(1:22)){
+if(sum(mat_sym[,j]) >= 2)
+{ 
+w1<- which(mat_sym[,j] == 1) 
+set <- combn(w1, 2)
+for (y in 1:ncol(set)){
+a <- (set[1,y])
+b <- (set[2,y])
+c <- which(data$ego == a & data$alter == b)
+d <- which(data$ego == b & data$alter == a)
+if(data$social_tie[c] > 0){}
+else if(data$task_tie[c] > 0){}
+else if(data$social_tie[d] > 0){}
+else if(data$task_tie[d] > 0){}
+else {
+i <- i + 1
+}
+}
+}
+}
+i
+
+
+
+data5=data
+median_soc =median(data$social_tie[data$social_tie>0])
+median_tas =median(data$task_tie[data$task_tie>0])
+data5$socmedian = ifelse(data5$social_tie>median_soc,1,0)
+data5$tasmedian = ifelse(data5$task_tie>median_tas,1,0)
+data5$tie = ifelse(data5$socmedian | data5$tasmedian,1,0)
+
+
+dm = data5
+dm$social_tie = NULL
+dm$task_tie = NULL
+dm$socmedian = NULL
+dm$tasmedian = NULL
+strmat = dm
+strmat = cast(strmat,ego~alter)
+strmat = strmat[,-1]
+strmat = as.matrix(strmat)
+
+mat_sym <- strmat + t(strmat)
+mat_sym[mat_sym == 2] <- 1
+
+i <- 0 
+for (j in c(1:22)){
+if(sum(mat_sym[,j]) >= 2)
+{ 
+w1<- which(mat_sym[,j] == 1) 
+set <- combn(w1, 2)
+for (y in 1:ncol(set)){
+a <- (set[1,y])
+b <- (set[2,y])
+c <- which(data$ego == a & data$alter == b)
+d <- which(data$ego == b & data$alter == a)
+if(data$social_tie[c] > 0){}
+else if(data$task_tie[c] > 0){}
+else if(data$social_tie[d] > 0){}
+else if(data$task_tie[d] > 0){}
+else {
+i <- i + 1
+}
+}
+}
+}
+i
+
+
+
+#Q3
+
+edge_betweenness(subgraph.edges(gr,E(gr)[E(gr)$social_tie>0]))
+edge_betweenness(subgraph.edges(gr,E(gr)[E(gr)$task_tie>0]))
+
+soc_gr = data3
+soc_gr$social_tie = NULL
+soc_gr$task_tie = NULL
+soc_gr$tasmean = NULL
+soc_gr$tasmedian = NULL
+soc_gr$socmedian = NULL
+
+soc_gr = soc_gr[soc_gr$socmean!=0,]
+soc_gr$socmean[soc_gr$socmean==10] =3
+socgr = graph.data.frame(soc_gr)
+tkplot(socgr,edge.width=E(socgr)$socmean,edge.color=E(socgr)$socmean,vertex.color= "light blue")
+
+
+#Q4
+library(expm)
+# COmbining both ties into 1 tie
+adj= data
+adj$tie = ifelse(adj$social_tie | adj$task_tie,1,0)
+# dropping social and task tie columns
+adj$social_tie = NULL
+adj$task_tie = NULL
+
+# pivoting data to matrix format
+library(reshape)
+adj_mat =cast(adj, ego~alter)
+rownames(adj_mat) = adj_mat[,1]
+adj_mat = adj_mat[,-1]
+mat_adj= as.matrix(adj_mat)
+
+gr2 = graph.adjacency(mat_adj, "directed")
+# 3 is isolated
+mat_adj = mat_adj[-3,-3]
+
+dummy = matrix(0, nrow=21, ncol=21) 
+for(x in c(1:15))
+{
+  power = mat_adj %^% x 
+  dummy = power + dummy
+}
+
+walkcount = 0
+
+for(y in c(1:21))
+{
+  for(z in c(1:21))
+  {
+    if(dummy[y,z]==0){ 
+      walkcount=1+walkcount 
+    }
+  }
+}
+walkcount
+
+distance_table(gr)
+
+# Q5
+net1<- make_star(9)
+plot(net1)
+
+deg= NULL
+deg$degree = degree(net1)
+maxdeg = max(deg$degree)
+deg$dif = maxdeg - deg$degree
+sum(deg$dif)/ (length(deg$degree)-1)/(length(deg$degree)-2)
+# NEt degree centrality of net1
+
+bet= NULL
+bet$betweenness = betweenness(net1)
+maxbet = max(bet$betweenness)
+bet$dif = maxbet - bet$betweenness
+sum(bet$dif)/ (length(bet$betweenness)-1)/(length(bet$betweenness)-2)
+# NEt betweenness centrality of net1
+
+close= NULL
+close$closeness = closeness(net1)
+maxcl = max(close$closeness)
+close$dif = maxcl - close$closeness
+sum(close$dif)/ (length(close$closeness)-1)/(length(close$closeness)-2)
+# NEt closeness centrality of net1
+
+net2 <- make_ring(4)
+plot(net2) 
+
+deg2= NULL
+deg2$degree = degree(net2)
+maxdeg2 = max(deg2$degree)
+deg2$dif = maxdeg2 - deg2$degree
+sum(deg2$dif)/ (length(deg2$degree)-1)/(length(deg2$degree)-2)
+# NEt degree centrality of net2
+
+bet2= NULL
+bet2$betweenness = betweenness(net2)
+maxbet2 = max(bet2$betweenness)
+bet2$dif = maxbet2 - bet2$betweenness
+sum(bet2$dif)/ (length(bet2$betweenness)-1)/(length(bet2$betweenness)-2)
+# NEt betweenness centrality of net2
+
+close2= NULL
+close2$closeness = closeness(net2)
+maxcl2 = max(close2$closeness)
+close2$dif = maxcl2 - close2$closeness
+sum(close2$dif)/ (length(close2$closeness)-1)/(length(close2$closeness)-2)
+# NEt closeness centrality of net2
+
+
